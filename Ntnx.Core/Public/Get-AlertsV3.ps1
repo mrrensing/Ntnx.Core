@@ -76,11 +76,12 @@ Please be aware that all code samples provided here are unofficial in nature, ar
         $response = Invoke-WebRequest @iwrArgs
 
         if($response.StatusCode -in 200..204){
+            $content = $response.Content | ConvertFrom-Json
             if($ShowMetadata){
-                $response.Content | ConvertFrom-Json -Depth 99
+                $response.Content | ConvertFrom-Json
             }
             else{
-                ($response.Content | ConvertFrom-Json -Depth 99).Entities
+                ($response.Content | ConvertFrom-Json).Entities
             }
         }
         elseif($response.StatusCode -eq 401){
