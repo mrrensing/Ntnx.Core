@@ -12,7 +12,7 @@
 RootModule = 'Ntnx.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.1.10'
+ModuleVersion = '0.0.1.12'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core', 'Desktop'
@@ -69,8 +69,9 @@ PowerShellVersion = '5.1'
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = 'Add-TrustAllCertsPolicy', 'Get-AlertsV3', 'Get-TasksV3', 
-               'Initialize-BasicAuthHeader', 'Update-HttpProxyWhitelist'
+FunctionsToExport = 'Add-TrustAllCertsPolicy', 'Get-AlertsV2', 'Get-AlertsV3', 
+               'Get-TasksV3', 'Initialize-BasicAuthHeader', 
+               'Update-HttpProxyWhitelist'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = '*'
