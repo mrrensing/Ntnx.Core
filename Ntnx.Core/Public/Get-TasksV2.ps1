@@ -25,8 +25,20 @@ Please be aware that all code samples provided here are unofficial in nature, ar
         $Credential,
 
         # Body Parameter1
-        #[Parameter()]
-        #$BodyParam1,
+        [Parameter()]
+        [switch]
+        $IncludeCompleted,
+
+        # Body Parameter1
+        [Parameter()]
+        [switch]
+        $IncludeSubtasksInfo,
+
+        # Number of tasks to return
+        [Parameter()]
+        [AllowNull]
+        [int]
+        $Count,
 
         [Parameter(Mandatory=$false)]
         [switch]
@@ -48,6 +60,16 @@ Please be aware that all code samples provided here are unofficial in nature, ar
 
     process {
         $body = [Hashtable]::new()
+
+        if($null -ne $Count){
+            body.add("count",$Count)
+        }
+        if($IncludeCompleted){
+            body.add("include_completed",$true)
+        }
+        if($IncludeSubtasksInfo){
+            body.add("include_subtasks_info",$true)
+        }
         #$body.add("BodyParam1",$BodyParam1)
 
         $iwrArgs = @{
