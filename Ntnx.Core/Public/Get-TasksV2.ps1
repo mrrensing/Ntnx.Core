@@ -70,7 +70,6 @@ Please be aware that all code samples provided here are unofficial in nature, ar
         if($IncludeSubtasksInfo){
             body.add("include_subtasks_info",$true)
         }
-        #$body.add("BodyParam1",$BodyParam1)
 
         $iwrArgs = @{
             Uri = "https://$($ComputerName):$($Port)/PrismGateway/services/rest/v2.0/tasks/list"
