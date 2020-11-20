@@ -24,9 +24,9 @@ Please be aware that all code samples provided here are unofficial in nature, ar
         [PSCredential]
         $Credential,
 
-        # Body Parameter1
-        #[Parameter()]
-        #$BodyParam1,
+        [Parameter(Mandatory=$false)]
+        [int]
+        $Count,
 
         [Parameter(Mandatory=$false)]
         [switch]
@@ -49,6 +49,9 @@ Please be aware that all code samples provided here are unofficial in nature, ar
     process {
         $body = [Hashtable]::new()
         $body.add("kind","task")
+        if($null -ne $Count){
+            $body.add("length",$Count)
+        }
 
         $iwrArgs = @{
             Uri = "https://$($ComputerName):$($Port)/api/nutanix/v3/tasks/list"
@@ -74,25 +77,33 @@ Please be aware that all code samples provided here are unofficial in nature, ar
             }
         }
         
-        $response = Invoke-WebRequest @iwrArgs
+        try {
+            $response = Invoke-WebRequest @iwrArgs
 
-        if($response.StatusCode -in 200..204){
-            if($ShowMetadata){
-                $response.Content | ConvertFrom-Json    
-            }
-            else{
-                ($response.Content | ConvertFrom-Json).Entities
+            if($response.StatusCode -eq 200){
+                $totalMatches = ($response.content | ConvertFrom-Json).metadata.total_matches
+                Write-Verbose -Message "Total records: $totalMatches"
+                if($Count -lt $totalMatches){
+                    ($response.content | ConvertFrom-Json).entities
+                }
+                else{
+                    do { 
+                        $response = Invoke-WebRequest @iwrArgs
+                        if($response.StatusCode -eq 200){
+                            ($response.content | ConvertFrom-Json).entities
+                        }
+                        $iwrArgs.body.offset += $Count
+                        Write-Verbose -Message "$Count"
+                    }
+                    Until (
+                        $iwrArgs.body.offset -ge $totalMatches
+                    )
+                }
             }
         }
-        elseif($response.StatusCode -eq 401){
-            Write-Verbose -Message "Credential used not authorized, exiting..."
-            Write-Error -Message "$($response.StatusCode): $($response.StatusDescription)"
-            exit
+        catch {
+            Write-Error -Message "ERROR $($response.StatusCode)"
         }
-        else{
-            Write-Error -Message "$($response.StatusCode): $($response.StatusDescription)"
-        }    
-
     }
                 
 }

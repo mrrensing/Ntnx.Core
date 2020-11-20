@@ -45,7 +45,6 @@ if(Test-Path -Path $manifestPath){
     $newVer = [version]::new($verUpdate.Major, $verUpdate.Minor, $verUpdate.Build, $verUpdate.Revision)
 
     Update-ModuleManifest -Path $manifestPath -FunctionsToExport $publicFunctions -ModuleVersion $newVer.tostring()
-
 }
 
 if($PushToModulePath){
