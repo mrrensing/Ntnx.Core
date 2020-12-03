@@ -1,4 +1,4 @@
-function Get-TasksV3 {   
+function Get-VmsV2 {   
 <#
 .SYNOPSIS
 Dynamically Generated API Function
@@ -24,14 +24,15 @@ Please be aware that all code samples provided here are unofficial in nature, ar
         [PSCredential]
         $Credential,
 
+        # Body Parameter1
         [Parameter(Mandatory=$false)]
-        [ValidateRange(1,500)]
-        [int]
-        $Count,
+        [switch]
+        $IncludeVmDiskConfig,
 
+        # Body Parameter1
         [Parameter(Mandatory=$false)]
-        [int]
-        $Offset,
+        [switch]
+        $IncludeVmNicConfig,
 
         [Parameter(Mandatory=$false)]
         [switch]
@@ -53,21 +54,19 @@ Please be aware that all code samples provided here are unofficial in nature, ar
 
     process {
         $body = [Hashtable]::new()
-        $body.add("kind","task")
-        #$body.add("offset",$null)
 
-        if($null -ne $Count){
-            $body.add("length",$Count)
+        if($IncludeVmDiskConfig){
+            $body.add("include_vm_disk_config",$true)
         }
-        
-        if($null -eq $Offset){
-            $Offset = 0
+        if($IncludeVmNicConfig){
+            $body.add("include_vm_nic_config",$true)
         }
 
         $iwrArgs = @{
-            Uri = "https://$($ComputerName):$($Port)/api/nutanix/v3/tasks/list"
-            Method = "POST"
+            Uri = "https://$($ComputerName):$($Port)/PrismGateway/services/rest/v2.0/vms"
+            Method = "GET"
             ContentType = "application/json"
+            ErrorVariable = "iwrError"
         }
 
         if($body.count -ge 1){
@@ -88,32 +87,45 @@ Please be aware that all code samples provided here are unofficial in nature, ar
             }
         }
         
-        try {
+        try{
             $response = Invoke-WebRequest @iwrArgs
 
-            if($response.StatusCode -eq 200){
-                $totalMatches = ($response.content | ConvertFrom-Json).metadata.total_matches
-                Write-Verbose -Message "Total records: $totalMatches"
-                if($Count -lt $totalMatches){
-                    ($response.content | ConvertFrom-Json).entities
+            if($response.StatusCode -in 200..204){
+                $content = $response.Content | ConvertFrom-Json
+
+                if($ShowMetadata){
+                    if($null -ne $content.metadata){
+                        $content.metadata    
+                    }
+                    else{
+                        Write-Output "No Metadata Found"
+                    }
                 }
                 else{
-                    do { 
-                        $response = Invoke-WebRequest @iwrArgs
-                        if($response.StatusCode -eq 200){
-                            ($response.content | ConvertFrom-Json).entities
-                        }
-                        $iwrArgs.body.offset += $Count
-                        Write-Verbose -Message "$Count"
+                    if($null -eq $Content.Entities){
+                        $content
                     }
-                    Until (
-                        $iwrArgs.body.offset -ge $totalMatches
-                    )
+                    else{
+                        $content.Entities
+                    }
                 }
             }
-        }
-        catch {
-            Write-Error -Message "ERROR $($response.StatusCode)"
+            elseif($response.StatusCode -eq 401){
+                Write-Verbose -Message "Credential used not authorized, exiting..."
+                Write-Error -Message "$($response.StatusCode): $($response.StatusDescription)"
+                exit
+            }
+            else{
+                Write-Error -Message "$($response.StatusCode): $($response.StatusDescription)"
+            }   
+        } 
+        catch{
+            if($null -eq $iwrError){
+                Write-Error -Message "API Call Failed"
+            }
+            else{
+                Write-Error -Message $iwrError.Message
+            }
         }
     }
                 

@@ -6,12 +6,15 @@ param(
 
     [parameter()]
     [switch]
-    $PushToModulePath=$true,
+    $PushToModulePath = $true,
 
     [parameter()]
     [switch]
-    $ReloadModule=$true
+    $ReloadModule = $true
 )
+
+#$PushToModulePath = $true
+#$ReloadModule = $true
 
 $moduleName = Split-Path (Split-Path $PSScriptRoot) -Leaf
 
@@ -45,6 +48,7 @@ if(Test-Path -Path $manifestPath){
     $newVer = [version]::new($verUpdate.Major, $verUpdate.Minor, $verUpdate.Build, $verUpdate.Revision)
 
     Update-ModuleManifest -Path $manifestPath -FunctionsToExport $publicFunctions -ModuleVersion $newVer.tostring()
+
 }
 
 if($PushToModulePath){
@@ -52,5 +56,6 @@ if($PushToModulePath){
 }
 
 if($ReloadModule){
-    Import-Module $moduleName -force
+    if(get-module $moduleName){Remove-Module $moduleName}
+    Import-Module $moduleName -force -Verbose
 }
