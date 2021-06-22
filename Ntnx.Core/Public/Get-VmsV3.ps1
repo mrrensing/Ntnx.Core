@@ -25,8 +25,10 @@ Please be aware that all code samples provided here are unofficial in nature, ar
         $Credential,
 
         # Body Parameter1
-        #[Parameter()]
-        #$BodyParam1,
+        [Parameter(Mandatory=$false)]
+        [ValidateRange(0,1000)]
+        [int]
+        $Count,
 
         [Parameter(Mandatory=$false)]
         [switch]
@@ -49,6 +51,9 @@ Please be aware that all code samples provided here are unofficial in nature, ar
     process {
         $body = [Hashtable]::new()
         $body.add("kind","vm")
+        if ($Count) {
+            $body.add("length",$Count)
+        }
 
         $iwrArgs = @{
             Uri = "https://$($ComputerName):$($Port)/api/nutanix/v3/vms/list"
@@ -97,11 +102,6 @@ Please be aware that all code samples provided here are unofficial in nature, ar
                         $content.Entities
                     }
                 }
-            }
-            elseif($response.StatusCode -eq 401){
-                Write-Verbose -Message "Credential used not authorized, exiting..."
-                Write-Error -Message "$($response.StatusCode): $($response.StatusDescription)"
-                exit
             }
             else{
                 Write-Error -Message "$($response.StatusCode): $($response.StatusDescription)"
