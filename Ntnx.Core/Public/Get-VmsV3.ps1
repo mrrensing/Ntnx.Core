@@ -26,17 +26,17 @@ Please be aware that all code samples provided here are unofficial in nature, ar
 
         # Body Parameter1
         [Parameter(Mandatory=$false)]
-        [ValidateRange(0,1000)]
+        [ValidateRange(0,500)]
         [int]
-        $Count,
+        $Count = 20,
+
+        [Parameter(Mandatory=$false)]
+        [int]
+        $Offset = 0,
 
         [Parameter(Mandatory=$false)]
         [switch]
         $SkipCertificateCheck,
-
-        [Parameter(Mandatory=$false)]
-        [switch]
-        $ShowMetadata,
 
         # Port (Default is 9440)
         [Parameter(Mandatory=$false)]
@@ -51,10 +51,9 @@ Please be aware that all code samples provided here are unofficial in nature, ar
     process {
         $body = [Hashtable]::new()
         $body.add("kind","vm")
-        if ($Count) {
-            $body.add("length",$Count)
-        }
-
+        $body.add("offset",$Offset)
+        $body.add("length",$Count)
+        
         $iwrArgs = @{
             Uri = "https://$($ComputerName):$($Port)/api/nutanix/v3/vms/list"
             Method = "POST"
@@ -81,38 +80,36 @@ Please be aware that all code samples provided here are unofficial in nature, ar
         }
         
         try{
-            $response = Invoke-WebRequest @iwrArgs
-
-            if($response.StatusCode -in 200..204){
-                $content = $response.Content | ConvertFrom-Json
-
-                if($ShowMetadata){
-                    if($null -ne $content.metadata){
-                        $content.metadata    
-                    }
-                    else{
-                        Write-Output "No Metadata Found"
-                    }
+            $iwr = Invoke-WebRequest @iwrArgs
+            $metadata = ($iwr.Content | ConvertFrom-Json -Depth 99).metadata
+            $entities = ($iwr.Content | ConvertFrom-Json -Depth 99).entities
+            Write-Verbose -Message "Total number of $($metadata.kind) entities: $($metadata.total_matches); Number of entites retrieved in this iteration: $($metadata.length)"     
+            
+            do {               
+                $body.offset += $metadata.length
+                Write-Verbose -Message "IWR offset: $($body.offset); IWR length = $($body.length)"
+        
+                $iwrArgs.Body = ($body | ConvertTo-Json)
+        
+                $response = Invoke-WebRequest @iwrArgs
+                if ($response.StatusCode -in 200..204) {
+                    $entities += ($response.Content | ConvertFrom-Json -Depth 99).entities
+                    $metadata = ($response.Content | ConvertFrom-Json -Depth 99).metadata
+                    Write-Verbose -Message "Total number of $($metadata.kind) entities: $($metadata.total_matches); Number of entites retrieved in this iteration: $($metadata.length)"
                 }
-                else{
-                    if($null -eq $Content.Entities){
-                        $content
-                    }
-                    else{
-                        $content.Entities
-                    }
-                }
-            }
-            else{
-                Write-Error -Message "$($response.StatusCode): $($response.StatusDescription)"
-            }   
+            } while ($metadata.total_matches -gt ([int]$metadata.length + [int]$metadata.offset))
+         
+            $entities
+
         } 
         catch{
             if($null -eq $iwrError){
                 Write-Error -Message "API Call Failed"
+                throw
             }
             else{
                 Write-Error -Message $iwrError.Message
+                throw
             }
         }
     }
