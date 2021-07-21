@@ -28,7 +28,7 @@ Please be aware that all code samples provided here are unofficial in nature, ar
         [Parameter(Mandatory=$false)]
         [ValidateRange(0,500)]
         [int]
-        $Count = 20,
+        $Count,
 
         [Parameter(Mandatory=$false)]
         [int]
@@ -37,6 +37,10 @@ Please be aware that all code samples provided here are unofficial in nature, ar
         [Parameter(Mandatory=$false)]
         [switch]
         $SkipCertificateCheck,
+
+        [Parameter(Mandatory=$false)]
+        [switch]
+        $UseBasicParsing,
 
         # Port (Default is 9440)
         [Parameter(Mandatory=$false)]
@@ -60,6 +64,9 @@ Please be aware that all code samples provided here are unofficial in nature, ar
             ContentType = "application/json"
             ErrorVariable = "iwrError"
         }
+        if ($UseBasicParsing) {
+            $iwrArgs.add("UseBasicParsing",$true)
+        }
 
         if($body.count -ge 1){
             $iwrArgs.add("Body",($body | ConvertTo-Json))
@@ -78,11 +85,17 @@ Please be aware that all code samples provided here are unofficial in nature, ar
                 $iwrArgs.add("SkipCertificateCheck",$true)
             }
         }
+
+        if ($PSVersionTable.PSVersion.Major -ge 6) {
+            $jsonConvertFromArgs = @{
+                Depth = 99
+            }
+        }
         
         try{
             $iwr = Invoke-WebRequest @iwrArgs
-            $metadata = ($iwr.Content | ConvertFrom-Json -Depth 99).metadata
-            $entities = ($iwr.Content | ConvertFrom-Json -Depth 99).entities
+            $metadata = ($iwr.Content | ConvertFrom-Json @jsonConvertFromArgs).metadata
+            $entities = ($iwr.Content | ConvertFrom-Json @jsonConvertFromArgs).entities
             Write-Verbose -Message "Total number of $($metadata.kind) entities: $($metadata.total_matches); Number of entites retrieved in this iteration: $($metadata.length)"     
             
             do {               
@@ -93,8 +106,8 @@ Please be aware that all code samples provided here are unofficial in nature, ar
         
                 $response = Invoke-WebRequest @iwrArgs
                 if ($response.StatusCode -in 200..204) {
-                    $entities += ($response.Content | ConvertFrom-Json -Depth 99).entities
-                    $metadata = ($response.Content | ConvertFrom-Json -Depth 99).metadata
+                    $entities += ($response.Content | ConvertFrom-Json @jsonConvertFromArgs).entities
+                    $metadata = ($response.Content | ConvertFrom-Json @jsonConvertFromArgs).metadata
                     Write-Verbose -Message "Total number of $($metadata.kind) entities: $($metadata.total_matches); Number of entites retrieved in this iteration: $($metadata.length)"
                 }
             } while ($metadata.total_matches -gt ([int]$metadata.length + [int]$metadata.offset))
