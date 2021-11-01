@@ -24,9 +24,15 @@ Please be aware that all code samples provided here are unofficial in nature, ar
         [PSCredential]
         $Credential,
 
-        # Body Parameter1
-        #[Parameter()]
-        #$BodyParam1,
+        # Number of records to return
+        [Parameter(Mandatory=$false)]
+        [ValidateRange(0,500)]
+        [int]
+        $Count,
+
+        [Parameter(Mandatory=$false)]
+        [int]
+        $Offset = 0,
 
         [Parameter(Mandatory=$false)]
         [switch]
@@ -73,25 +79,45 @@ Please be aware that all code samples provided here are unofficial in nature, ar
             }
         }
         
-        $response = Invoke-WebRequest @iwrArgs
+        if ($PSVersionTable.PSVersion.Major -ge 6) {
+            $jsonConvertFromArgs = @{
+                Depth = 99
+            }
+        }
+        
+        try{
+            $iwr = Invoke-WebRequest @iwrArgs
+            $metadata = ($iwr.Content | ConvertFrom-Json @jsonConvertFromArgs).metadata
+            $entities = ($iwr.Content | ConvertFrom-Json @jsonConvertFromArgs).entities
+            Write-Verbose -Message "Total number of $($metadata.kind) entities: $($metadata.total_matches); Number of entites retrieved in this iteration: $($metadata.length)"     
+            
+            do {               
+                $body.offset += $metadata.length
+                Write-Verbose -Message "IWR offset: $($body.offset); IWR length = $($body.length)"
+        
+                $iwrArgs.Body = ($body | ConvertTo-Json)
+        
+                $response = Invoke-WebRequest @iwrArgs
+                if ($response.StatusCode -in 200..204) {
+                    $entities += ($response.Content | ConvertFrom-Json @jsonConvertFromArgs).entities
+                    $metadata = ($response.Content | ConvertFrom-Json @jsonConvertFromArgs).metadata
+                    Write-Verbose -Message "Total number of $($metadata.kind) entities: $($metadata.total_matches); Number of entites retrieved in this iteration: $($metadata.length)"
+                }
+            } while ($metadata.total_matches -gt ([int]$metadata.length + [int]$metadata.offset))
+         
+            $entities
 
-        if($response.StatusCode -in 200..204){
-            $content = $response.Content | ConvertFrom-Json
-            if($ShowMetadata){
-                $response.Content | ConvertFrom-Json
+        } 
+        catch{
+            if($null -eq $iwrError){
+                Write-Error -Message "API Call Failed"
+                throw
             }
             else{
-                ($response.Content | ConvertFrom-Json).Entities
+                Write-Error -Message $iwrError.Message
+                throw
             }
         }
-        elseif($response.StatusCode -eq 401){
-            Write-Verbose -Message "Credential used not authorized, exiting..."
-            Write-Error -Message "$($response.StatusCode): $($response.StatusDescription)"
-            exit
-        }
-        else{
-            Write-Error -Message "$($response.StatusCode): $($response.StatusDescription)"
-        }    
 
     }
                 
